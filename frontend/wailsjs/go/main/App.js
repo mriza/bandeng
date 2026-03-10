@@ -26,6 +26,10 @@ export function GetLogs() {
   return window['go']['main']['App']['GetLogs']();
 }
 
+export function GetSystemInfo() {
+  return window['go']['main']['App']['GetSystemInfo']();
+}
+
 export function RemoveIPBinding(arg1) {
   return window['go']['main']['App']['RemoveIPBinding'](arg1);
 }

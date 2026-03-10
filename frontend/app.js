@@ -30,16 +30,70 @@ window.onload = function() {
         const errorSpan = document.getElementById('mac-error');
         if (errorSpan) errorSpan.innerText = '';
     });
+
+    // Replace icons with local SVGs
+    replaceIcons();
 };
 
-const { Connect, Disconnect, GetIPBindings, AddIPBinding, RemoveIPBinding, GetSystemInfo, GetLogs, GetHotspotServers } = window.go.main.App;;
+async function replaceIcons() {
+    const icons = document.querySelectorAll('[data-lucide]');
+    for (const icon of icons) {
+        const name = icon.getAttribute('data-lucide');
+        try {
+            const response = await fetch(`icons/${name}.svg`);
+            if (!response.ok) continue;
+            const svgText = await response.text();
+            
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = svgText.trim();
+            const svg = wrapper.firstChild;
+            
+            // Transfer classes
+            if (icon.className) {
+                // Keep original classes
+                svg.setAttribute('class', icon.className);
+            }
+            
+            icon.parentNode.replaceChild(svg, icon);
+        } catch (e) {
+            console.error(`Failed to load icon ${name}`, e);
+        }
+    }
+}
+
+const { Connect, Disconnect, GetIPBindings, AddIPBinding, RemoveIPBinding, GetSystemInfo, GetLogs, GetHotspotServers } = window.go.main.App;
 
 let currentBindings = [];
 let currentPage = 1;
 const itemsPerPage = 15;
 
-function showStatus(message) {
-    document.getElementById('status').innerText = message;
+function showStatus(message, type = 'info') {
+    const container = document.getElementById('status-container');
+    const alert = document.createElement('div');
+    
+    let alertClass = 'alert-info';
+    if (type === 'error') alertClass = 'alert-error';
+    if (type === 'success') alertClass = 'alert-success';
+
+    alert.className = `alert ${alertClass} shadow-lg mb-2 transition-all duration-300 transform translate-y-4 opacity-0`;
+    alert.innerHTML = `
+        <div>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    container.appendChild(alert);
+    
+    // Trigger animation
+    setTimeout(() => {
+        alert.classList.remove('translate-y-4', 'opacity-0');
+    }, 10);
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+        alert.classList.add('translate-y-4', 'opacity-0');
+        setTimeout(() => alert.remove(), 300);
+    }, 3000);
 }
 
 async function connect() {
@@ -48,27 +102,27 @@ async function connect() {
     const password = document.getElementById('password').value;
 
     const result = await Connect(address, username, password);
-    showStatus(result);
-
+    
     if (result === "Connected successfully") {
+        showStatus(result, 'success');
         localStorage.setItem('routerAddress', address);
         localStorage.setItem('routerUsername', username);
-        document.getElementById('login-container').style.display = 'none';
-        document.getElementById('main-container').style.display = 'flex';
+        document.getElementById('login-container').classList.add('hidden');
+        document.getElementById('main-container').classList.remove('hidden');
         loadSystemInfo();
-        document.getElementById('bindings').style.display = 'block';
-        document.getElementById('logs').style.display = 'block';
-        loadBindings(); // Load bindings automatically
-        loadLogs(); // Load logs
-        loadServers(); // Load servers for dropdown
+        loadBindings();
+        loadLogs();
+        loadServers();
+    } else {
+        showStatus(result, 'error');
     }
 }
 
 async function disconnect() {
     const result = await Disconnect();
-    showStatus(result);
-    document.getElementById('login-container').style.display = 'flex';
-    document.getElementById('main-container').style.display = 'none';
+    showStatus(result, 'info');
+    document.getElementById('login-container').classList.remove('hidden');
+    document.getElementById('main-container').classList.add('hidden');
     document.getElementById('bindings-body').innerHTML = '';
 }
 
@@ -80,17 +134,25 @@ async function loadLogs() {
 
 async function loadSystemInfo() {
     const info = await GetSystemInfo();
+    const infoEl = document.getElementById('sys-info');
     if (info.error) {
-        document.getElementById('sys-info').innerText = info.error;
+        infoEl.innerText = info.error;
     } else {
-        document.getElementById('sys-info').innerText = `Router Name: ${info.name || 'Unknown'}`;
+        infoEl.innerText = `Identity: ${info.name || 'MikroTik'}`;
     }
 }
 
 async function loadServers() {
     const servers = await GetHotspotServers();
     const select = document.getElementById('modal-server');
-    select.innerHTML = ''; // Clear existing options
+    select.innerHTML = '';
+    
+    // Add "all" option as default
+    const allOption = document.createElement('option');
+    allOption.value = 'all';
+    allOption.text = 'all (Default)';
+    select.appendChild(allOption);
+
     servers.forEach(server => {
         const option = document.createElement('option');
         option.value = server;
@@ -98,18 +160,19 @@ async function loadServers() {
         select.appendChild(option);
     });
 }
+
 async function loadBindings() {
     const result = await GetIPBindings();
     const bindings = result.bindings;
     const error = result.error;
 
     if (error) {
-        showStatus("Failed to load bindings: " + error);
+        showStatus("Failed to load bindings: " + error, 'error');
         return;
     }
 
     if (!bindings || bindings.length === 0) {
-        showStatus("No bindings found");
+        showStatus("No bindings found", 'info');
         currentBindings = [];
         renderPage(1);
         return;
@@ -133,32 +196,48 @@ function renderPage(page) {
     const end = start + itemsPerPage;
     const pageBindings = currentBindings.slice(start, end);
 
-    pageBindings.forEach(binding => {
+    pageBindings.forEach((binding, i) => {
         const row = tbody.insertRow();
-        row.insertCell(0).innerText = binding['.id'] || '';
-        row.insertCell(1).innerText = binding['ip-address'] || '';
-        row.insertCell(2).innerText = binding['mac-address'] || '';
-        row.insertCell(3).innerText = binding.type || '';
-        row.insertCell(4).innerText = binding.comment || '';
+        
+        row.insertCell(0).innerHTML = `<span class="font-mono opacity-50 text-xs">${start + i + 1}</span>`;
+        row.insertCell(1).innerHTML = `<span class="badge badge-ghost badge-sm font-mono">${binding['.id'] || ''}</span>`;
+        row.insertCell(2).innerText = binding['ip-address'] || '-';
+        row.insertCell(3).innerText = binding['mac-address'] || '';
+        row.insertCell(4).innerText = binding.server || 'all';
+        
+        // Type Badge
+        const typeCell = row.insertCell(5);
+        let badgeType = 'badge-ghost';
+        if (binding.type === 'bypassed') badgeType = 'badge-success';
+        if (binding.type === 'blocked') badgeType = 'badge-error';
+        typeCell.innerHTML = `<span class="badge ${badgeType} badge-sm capitalize">${binding.type || 'regular'}</span>`;
+        
+        row.insertCell(6).innerText = binding.comment || '';
 
-        const actionsCell = row.insertCell(5);
+        const actionsCell = row.insertCell(7);
+        actionsCell.className = "text-center";
         const removeBtn = document.createElement('button');
-        removeBtn.innerText = 'Remove';
+        removeBtn.className = 'btn btn-ghost btn-xs text-error tooltip';
+        removeBtn.setAttribute('data-tip', 'Remove Binding');
+        removeBtn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i>';
         removeBtn.onclick = () => removeBinding(binding['.id']);
         actionsCell.appendChild(removeBtn);
     });
 
     updatePaginationControls(totalPages);
+    
+    // Replace icons with local SVGs
+    replaceIcons();
 }
 
 function updatePaginationControls(totalPages) {
     const paginationControls = document.getElementById('pagination-controls');
     if (totalPages <= 1) {
-        paginationControls.style.display = 'none';
+        paginationControls.classList.add('hidden');
         return;
     }
     
-    paginationControls.style.display = 'block';
+    paginationControls.classList.remove('hidden');
     
     const prevBtn = document.getElementById('prev-page');
     const nextBtn = document.getElementById('next-page');
@@ -180,36 +259,44 @@ async function addBinding() {
     if (!macRegex.test(mac)) {
         const errorSpan = document.getElementById('mac-error');
         if (errorSpan) {
-            errorSpan.innerText = 'Invalid MAC Address format. Must be 12 hex characters.';
+            errorSpan.innerText = 'Invalid MAC format (XX:XX:XX:XX:XX:XX)';
         } else {
-            alert('Invalid MAC Address format.');
+            showStatus('Invalid MAC address format', 'error');
         }
         return;
     }
 
     const result = await AddIPBinding(mac, server, typ, comment);
-    showStatus(result);
+    
     if (result === "Binding added successfully") {
+        showStatus(result, 'success');
         closeModal();
-        loadBindings(); // Refresh bindings
+        loadBindings();
+        // Reset fields
         document.getElementById('modal-mac').value = '';
-        document.getElementById('modal-server').value = '';
+        document.getElementById('modal-server').selectedIndex = 0;
         document.getElementById('modal-comment').value = '';
+    } else {
+        showStatus(result, 'error');
     }
 }
 
 function openModal() {
-    document.getElementById('addModal').style.display = 'block';
+    document.getElementById('addModal').showModal();
 }
 
 function closeModal() {
-    document.getElementById('addModal').style.display = 'none';
+    document.getElementById('addModal').close();
 }
 
 async function removeBinding(id) {
+    if (!confirm(`Are you sure you want to remove binding ID ${id}?`)) return;
+    
     const result = await RemoveIPBinding(id);
-    showStatus(result);
     if (result === "Binding removed successfully") {
+        showStatus(result, 'success');
         loadBindings();
+    } else {
+        showStatus(result, 'error');
     }
 }

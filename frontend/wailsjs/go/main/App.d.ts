@@ -13,4 +13,6 @@ export function GetIPBindings():Promise<Record<string, any>>;
 
 export function GetLogs():Promise<Array<string>>;
 
+export function GetSystemInfo():Promise<Record<string, any>>;
+
 export function RemoveIPBinding(arg1:string):Promise<string>;

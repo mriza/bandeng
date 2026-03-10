@@ -1,136 +1,189 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="corporate">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bandeng - Easy Mikrotik Hotspot IP Binding Management</title>
+    <!-- Local Assets -->
+    <link href="style.css" rel="stylesheet" type="text/css" />
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; display: flex; flex-direction: column; height: 100vh; }
-        .container { flex: 1; padding: 20px; overflow-y: auto; }
-        .login-container { display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column; }
-        .main-container { display: none; flex: 1; flex-direction: column; }
-        .modal { display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.4); }
-        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 400px; }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close:hover { color: black; }
-        .form-group { margin-bottom: 10px; }
-        label { display: block; }
-        input, button { padding: 8px; margin: 5px 0; }
-        button { background: #007bff; color: white; border: none; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .status { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+        body { min-height: 100vh; display: flex; flex-direction: column; }
+        .main-content { flex: 1; }
+        #connection { max-width: 400px; width: 100%; }
+        /* Prevent layout shift before JS loads */
+        [id$="-container"] { transition: opacity 0.2s; }
     </style>
 </head>
-<body>
-    <div class="login-container" id="login-container">
-        <div class="container">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <img src="appicon.png" alt="Bandeng Icon" style="width: 80px; height: 80px; vertical-align: middle;">
-                <h1 style="margin: 10px 0 5px 0;">Bandeng</h1>
-                <p style="color: #666; margin: 0; font-style: italic;">Easy Mikrotik Hotspot IP Binding Management</p>
-            </div>
-            <div id="connection">
-                <h2>Connection</h2>
-                <div class="form-group">
-                    <label for="address">Router Address (default port 8728):</label>
-                    <input type="text" id="address" placeholder="192.168.88.1">
+<body class="bg-base-200">
+    <!-- Login Container -->
+    <div id="login-container" class="login-container flex flex-col items-center justify-center min-h-screen p-4">
+        <div class="card w-full max-w-sm bg-base-100 shadow-xl">
+            <div class="card-body items-center text-center">
+                <img src="appicon.png" alt="Bandeng Icon" class="w-24 h-24 mb-2">
+                <h1 class="card-title text-3xl font-bold text-primary">Bandeng</h1>
+                <p class="text-sm italic opacity-70">Easy Mikrotik Hotspot IP Binding Management</p>
+                
+                <div id="connection" class="mt-6 w-full space-y-4">
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">Router Address</span></label>
+                        <input type="text" id="address" placeholder="192.168.88.1" class="input input-bordered w-full" />
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">Username</span></label>
+                        <input type="text" id="username" placeholder="admin" class="input input-bordered w-full" />
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">Password</span></label>
+                        <input type="password" id="password" class="input input-bordered w-full" onkeypress="if(event.key === 'Enter') connect()" />
+                    </div>
+                    <div class="card-actions justify-center mt-4">
+                        <button class="btn btn-primary w-full" onclick="connect()">
+                            <i data-lucide="link" class="w-4 h-4 mr-2"></i> Connect
+                        </button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" placeholder="admin">
-                </div>
-                <div class="form-group">
-                    <label for="password">Password:</label>
-                    <input type="password" id="password">
-                </div>
-                <button onclick="connect()">Connect</button>
             </div>
         </div>
+        <!-- Copyright on Login (Centered) -->
+        <footer class="mt-8 text-sm opacity-50">
+            <p>Copyright 2026 &copy; PT LSKK</p>
+        </footer>
     </div>
 
-    <div class="main-container" id="main-container">
-        <div class="container">
-            <div style="display: flex; align-items: center; margin-bottom: 20px;">
-                <img src="appicon.png" alt="Bandeng Icon" style="width: 50px; height: 50px; margin-right: 15px;">
+    <!-- Main Container -->
+    <div id="main-container" class="hidden main-content flex flex-col h-screen overflow-hidden">
+        <!-- Navbar -->
+        <div class="navbar bg-base-100 shadow-md px-4 lg:px-8">
+            <div class="flex-1 gap-4">
+                <img src="appicon.png" alt="Bandeng Icon" class="w-10 h-10">
                 <div>
-                    <h1 style="margin: 0; font-size: 24px;">Bandeng</h1>
-                    <p style="color: #666; margin: 0; font-size: 14px; font-style: italic;">Easy Mikrotik Hotspot IP Binding Management</p>
+                    <h2 class="text-xl font-bold leading-tight">Bandeng</h2>
+                    <p class="text-xs italic opacity-60 hidden sm:block">Easy Mikrotik Hotspot IP Binding Management</p>
+                </div>
+            </div>
+            <div class="flex-none gap-2">
+                <div id="sys-info" class="text-xs opacity-70 mr-4 font-mono hidden md:block"></div>
+                <button class="btn btn-error btn-sm lg:btn-md" onclick="disconnect()">
+                    <i data-lucide="link-2-off" class="w-4 h-4 mr-2"></i> Disconnect
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="container mx-auto p-4 lg:p-8 flex-1 overflow-y-auto space-y-6">
+            
+            <!-- IP Bindings Section -->
+            <div id="bindings-section" class="card bg-base-100 shadow-xl overflow-visible">
+                <div class="card-body">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                        <h2 class="card-title text-2xl">
+                            <i data-lucide="list" class="text-primary"></i> IP Bindings
+                        </h2>
+                        <div class="flex gap-2">
+                            <button class="btn btn-outline btn-sm" onclick="loadBindings()">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick="openModal()">
+                                <i data-lucide="plus" class="w-4 h-4 mr-1"></i> Add Binding
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="table table-zebra w-full" id="bindings-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>ID</th>
+                                    <th>IP Address</th>
+                                    <th>MAC Address</th>
+                                    <th>Server</th>
+                                    <th>Type</th>
+                                    <th>Comment</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bindings-body"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div id="pagination-controls" class="flex justify-center items-center gap-4 mt-6">
+                        <button id="prev-page" class="btn btn-sm btn-ghost">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i> Prev
+                        </button>
+                        <span id="page-info" class="text-sm font-medium"></span>
+                        <button id="next-page" class="btn btn-sm btn-ghost">
+                            Next <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div id="system-info" style="display: none;">
-                <h2>System Info</h2>
-                <p id="sys-info"></p>
-            </div>
-
-            <div id="bindings" style="display: none;">
-                <h2>IP Bindings</h2>
-                <button onclick="loadBindings()">Reload Bindings</button>
-                <button onclick="openModal()">Add Binding</button>
-                <table id="bindings-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>IP Address</th>
-                            <th>MAC Address</th>
-                            <th>Type</th>
-                            <th>Comment</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bindings-body"></tbody>
-                </table>
-                <div id="pagination-controls" style="margin-top: 10px; text-align: center;">
-                    <button id="prev-page">Previous</button>
-                    <span id="page-info" style="margin: 0 10px;"></span>
-                    <button id="next-page">Next</button>
+            <!-- Activity Logs Section -->
+            <div id="logs-section" class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="card-title">
+                            <i data-lucide="file-text" class="text-secondary"></i> Activity Logs
+                        </h2>
+                        <button class="btn btn-ghost btn-xs" onclick="loadLogs()">Refresh</button>
+                    </div>
+                    <textarea id="logs-text" class="textarea textarea-bordered h-48 font-mono text-xs w-full bg-base-200" readonly></textarea>
                 </div>
             </div>
-
-            <div id="logs" style="display: none;">
-                <h2>Activity Logs</h2>
-                <button onclick="loadLogs()">Refresh Logs</button>
-                <textarea id="logs-text" rows="10" cols="80" readonly style="width: 100%; font-family: monospace;"></textarea>
-            </div>
         </div>
-        <button class="logout-btn" onclick="disconnect()">Logout</button>
+
+        <!-- Copyright Main Page (Bottom Right) -->
+        <footer class="footer items-center p-3 bg-neutral text-neutral-content justify-end px-8">
+            <p class="text-xs">Copyright 2026 &copy; PT LSKK</p>
+        </footer>
     </div>
 
-    <div id="addModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h3>Add New Binding</h3>
-            <div class="form-group">
-                <label for="modal-mac">MAC Address:</label>
-                <input type="text" id="modal-mac" placeholder="AA:BB:CC:DD:EE:FF">
-                <span id="mac-error" style="color: red; font-size: 12px; display: block; margin-top: 5px;"></span>
+    <!-- Modals -->
+    <dialog id="addModal" class="modal">
+        <div class="modal-box max-w-md">
+            <form method="dialog">
+                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+            </form>
+            <h3 class="font-bold text-lg mb-4">Add New IP Binding</h3>
+            
+            <div class="space-y-4">
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text">MAC Address</span></label>
+                    <input type="text" id="modal-mac" placeholder="AA:BB:CC:DD:EE:FF" class="input input-bordered w-full" />
+                    <label class="label"><span id="mac-error" class="label-text-alt text-error"></span></label>
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text">Server</span></label>
+                    <select id="modal-server" class="select select-bordered w-full"></select>
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text">Type</span></label>
+                    <select id="modal-type" class="select select-bordered w-full">
+                        <option value="regular">Regular</option>
+                        <option value="bypassed">Bypassed</option>
+                        <option value="blocked">Blocked</option>
+                    </select>
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text">Comment</span></label>
+                    <input type="text" id="modal-comment" class="input input-bordered w-full" placeholder="e.g. CCTV Front Office" />
+                </div>
+                <div class="modal-action">
+                    <button class="btn btn-primary w-full" onclick="addBinding()">
+                        <i data-lucide="save" class="w-4 h-4 mr-2"></i> Save Binding
+                    </button>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="modal-server">Server:</label>
-                <select id="modal-server">
-                    <!-- Options will be populated by JavaScript -->
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="modal-type">Type:</label>
-                <select id="modal-type">
-                    <option value="regular">Regular</option>
-                    <option value="bypassed">Bypassed</option>
-                    <option value="blocked">Blocked</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="modal-comment">Comment:</label>
-                <input type="text" id="modal-comment">
-            </div>
-            <button onclick="addBinding()">Add Binding</button>
         </div>
-    </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
 
-    <div class="status" id="status"></div>
+    <!-- Status Toast -->
+    <div id="status-container" class="toast toast-bottom toast-center z-[100]"></div>
 
     <script src="app.js"></script>
 </body>

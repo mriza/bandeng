@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-routeros/routeros/v3"
@@ -16,6 +17,7 @@ type App struct {
 	client  *routeros.Client
 	address string
 	logs    []string
+	mu      sync.Mutex
 }
 
 // NewApp creates a new App application struct
@@ -39,6 +41,9 @@ func (a *App) startup(ctx context.Context) {
 
 // Connect to Mikrotik router
 func (a *App) Connect(address, username, password string) string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	// Default port to 8728 if not specified
 	if !strings.Contains(address, ":") {
 		address += ":8728"
@@ -56,6 +61,9 @@ func (a *App) Connect(address, username, password string) string {
 
 // Disconnect from Mikrotik router
 func (a *App) Disconnect() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	
 	if a.client != nil {
 		a.client.Close()
 		a.client = nil
@@ -66,6 +74,9 @@ func (a *App) Disconnect() string {
 
 // Get IP bindings
 func (a *App) GetIPBindings() map[string]interface{} {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	if a.client == nil {
 		a.addLog("GetIPBindings: Not connected")
 		return map[string]interface{}{"error": "Not connected"}
@@ -91,6 +102,9 @@ func (a *App) GetIPBindings() map[string]interface{} {
 
 // Get hotspot servers
 func (a *App) GetHotspotServers() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	if a.client == nil {
 		a.addLog("GetHotspotServers: Not connected")
 		return []string{}
@@ -112,30 +126,17 @@ func (a *App) GetHotspotServers() []string {
 	return servers
 }
 func (a *App) AddIPBinding(mac, server, typ, comment string) string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	if a.client == nil {
 		a.addLog("AddIPBinding: Not connected")
 		return "Not connected"
 	}
 
-	// Check if hotspot is configured
-	_, err := a.client.Run("/ip/hotspot/print")
-	if err != nil {
-		a.addLog(fmt.Sprintf("Hotspot not configured: %v", err))
-		return "Hotspot not configured on router"
-	}
-
-	// Check API write permissions
-	_, err = a.client.Run("/system/identity/set name=test")
-	if err == nil {
-		// Revert if successful
-		a.client.Run("/system/identity/set name=")
-	} else {
-		a.addLog(fmt.Sprintf("API write access denied: %v", err))
-		return "API does not have write permissions"
-	}
-
 	a.addLog(fmt.Sprintf("Executing command: /ip/hotspot/ip-binding/add server=%s mac-address=%s type=%s comment=%s", server, mac, typ, comment))
-	_, err = a.client.Run("/ip/hotspot/ip-binding/add", "=server="+server, "=mac-address="+mac, "=type="+typ, "=comment="+comment)
+
+	_, err := a.client.Run("/ip/hotspot/ip-binding/add", "=server="+server, "=mac-address="+mac, "=type="+typ, "=comment="+comment)
 	if err != nil {
 		a.addLog(fmt.Sprintf("AddIPBinding failed for MAC %s: %v", mac, err))
 		return fmt.Sprintf("Failed to add binding: %v", err)
@@ -146,6 +147,9 @@ func (a *App) AddIPBinding(mac, server, typ, comment string) string {
 
 // Remove IP binding
 func (a *App) RemoveIPBinding(id string) string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	if a.client == nil {
 		a.addLog("RemoveIPBinding: Not connected")
 		return "Not connected"
@@ -162,5 +166,33 @@ func (a *App) RemoveIPBinding(id string) string {
 
 // Get logs
 func (a *App) GetLogs() []string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	return a.logs
+}
+
+// Get system info
+func (a *App) GetSystemInfo() map[string]interface{} {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.client == nil {
+		a.addLog("GetSystemInfo: Not connected")
+		return map[string]interface{}{"error": "Not connected"}
+	}
+
+	reply, err := a.client.Run("/system/identity/print")
+	if err != nil {
+		a.addLog(fmt.Sprintf("GetSystemInfo failed: %v", err))
+		return map[string]interface{}{"error": fmt.Sprintf("Failed to get system info: %v", err)}
+	}
+
+	info := make(map[string]interface{})
+	for _, re := range reply.Re {
+		if name, ok := re.Map["name"]; ok {
+			info["name"] = name
+			break
+		}
+	}
+	return info
 }
