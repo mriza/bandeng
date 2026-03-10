@@ -1,0 +1,13 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "mkdir -p dist && cp index.html app.js appicon.png dist/",
+    "dev": "mkdir -p dist && cp index.html app.js appicon.png dist/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
