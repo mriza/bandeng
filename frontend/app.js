@@ -2,8 +2,11 @@
 window.onload = function() {
     const savedAddress = localStorage.getItem('routerAddress');
     const savedUsername = localStorage.getItem('routerUsername');
+    const savedSecure = localStorage.getItem('routerSecure') === 'true';
+    
     if (savedAddress) document.getElementById('address').value = savedAddress;
     if (savedUsername) document.getElementById('username').value = savedUsername;
+    document.getElementById('secure').checked = savedSecure;
 
     // Pagination event listeners
     document.getElementById('prev-page').addEventListener('click', () => {
@@ -61,7 +64,7 @@ async function replaceIcons() {
     }
 }
 
-const { Connect, Disconnect, GetIPBindings, AddIPBinding, RemoveIPBinding, GetSystemInfo, GetLogs, GetHotspotServers } = window.go.main.App;
+const { Connect, Disconnect, GetIPBindings, AddIPBinding, RemoveIPBinding, GetSystemInfo, GetLogs, GetHotspotServers, SyncIPBinding, SyncAllIPBindings } = window.go.main.App;
 
 let currentBindings = [];
 let currentPage = 1;
@@ -96,26 +99,46 @@ function showStatus(message, type = 'info') {
     }, 3000);
 }
 
-async function connect() {
+async function connect(insecure = false) {
     const address = document.getElementById('address').value;
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
+    const secure = document.getElementById('secure').checked;
 
-    const result = await Connect(address, username, password);
+    showStatus("Connecting to " + address + "...", "info");
+    const result = await Connect(address, username, password, secure, insecure);
     
-    if (result === "Connected successfully") {
-        showStatus(result, 'success');
+    if (result.status === "success") {
+        showStatus(result.message, 'success');
         localStorage.setItem('routerAddress', address);
         localStorage.setItem('routerUsername', username);
+        localStorage.setItem('routerSecure', secure);
+
         document.getElementById('login-container').classList.add('hidden');
         document.getElementById('main-container').classList.remove('hidden');
         loadSystemInfo();
         loadBindings();
         loadLogs();
         loadServers();
+    } else if (result.status === "cert_error") {
+        showCertModal(result.cert_info);
     } else {
-        showStatus(result, 'error');
+        showStatus(result.message, 'error');
     }
+}
+
+function showCertModal(info) {
+    document.getElementById('cert-subject').innerText = info.subject;
+    document.getElementById('cert-issuer').innerText = info.issuer;
+    document.getElementById('cert-validity').innerText = `${info.validFrom} to ${info.validTo}`;
+    document.getElementById('cert-fingerprint').innerText = info.fingerprint;
+    document.getElementById('certModal').showModal();
+    replaceIcons();
+}
+
+async function trustAndConnect() {
+    document.getElementById('certModal').close();
+    await connect(true);
 }
 
 async function disconnect() {
@@ -161,7 +184,7 @@ async function loadServers() {
     });
 }
 
-async function loadBindings() {
+async function loadBindings(preservePage = false) {
     const result = await GetIPBindings();
     const bindings = result.bindings;
     const error = result.error;
@@ -172,14 +195,16 @@ async function loadBindings() {
     }
 
     if (!bindings || bindings.length === 0) {
-        showStatus("No bindings found", 'info');
+        showStatus("No bindings found", "info");
         currentBindings = [];
         renderPage(1);
         return;
     }
 
     currentBindings = bindings;
-    currentPage = 1;
+    if (!preservePage) {
+        currentPage = 1;
+    }
     renderPage(currentPage);
 }
 
@@ -201,7 +226,7 @@ function renderPage(page) {
         
         row.insertCell(0).innerHTML = `<span class="font-mono opacity-50 text-xs">${start + i + 1}</span>`;
         row.insertCell(1).innerHTML = `<span class="badge badge-ghost badge-sm font-mono">${binding['.id'] || ''}</span>`;
-        row.insertCell(2).innerText = binding['ip-address'] || '-';
+        row.insertCell(2).innerText = binding['address'] || '-';
         row.insertCell(3).innerText = binding['mac-address'] || '';
         row.insertCell(4).innerText = binding.server || 'all';
         
@@ -215,7 +240,17 @@ function renderPage(page) {
         row.insertCell(6).innerText = binding.comment || '';
 
         const actionsCell = row.insertCell(7);
-        actionsCell.className = "text-center";
+        actionsCell.className = "flex justify-center gap-1";
+        
+        // Sync Button
+        const syncBtn = document.createElement('button');
+        syncBtn.className = 'btn btn-ghost btn-xs text-primary tooltip';
+        syncBtn.setAttribute('data-tip', 'Sync IP from ARP');
+        syncBtn.innerHTML = '<i data-lucide="search-check" class="w-4 h-4"></i>';
+        syncBtn.onclick = () => syncItem(binding['.id'], binding['mac-address']);
+        actionsCell.appendChild(syncBtn);
+
+        // Remove Button
         const removeBtn = document.createElement('button');
         removeBtn.className = 'btn btn-ghost btn-xs text-error tooltip';
         removeBtn.setAttribute('data-tip', 'Remove Binding');
@@ -271,7 +306,7 @@ async function addBinding() {
     if (result === "Binding added successfully") {
         showStatus(result, 'success');
         closeModal();
-        loadBindings();
+        loadBindings(false); // Go to page 1 to see new item
         // Reset fields
         document.getElementById('modal-mac').value = '';
         document.getElementById('modal-server').selectedIndex = 0;
@@ -295,8 +330,37 @@ async function removeBinding(id) {
     const result = await RemoveIPBinding(id);
     if (result === "Binding removed successfully") {
         showStatus(result, 'success');
-        loadBindings();
+        loadBindings(true); // Stay on current page
     } else {
         showStatus(result, 'error');
+    }
+}
+
+async function syncItem(id, mac) {
+    if (!mac) {
+        showStatus("MAC address is required for sync", "error");
+        return;
+    }
+    
+    showStatus(`Syncing MAC ${mac}...`, "info");
+    const result = await SyncIPBinding(id, mac);
+    
+    if (result.startsWith("Success:")) {
+        showStatus(result, "success");
+        loadBindings(true); // Stay on current page
+    } else {
+        showStatus(result, "error");
+    }
+}
+
+async function syncAll() {
+    showStatus("Starting bulk synchronization...", "info");
+    const result = await SyncAllIPBindings();
+    
+    if (result.includes("Successfully")) {
+        showStatus(result, "success");
+        loadBindings(true); // Stay on current page
+    } else {
+        showStatus(result, "error");
     }
 }

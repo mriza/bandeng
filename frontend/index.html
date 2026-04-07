@@ -36,6 +36,12 @@
                         <label class="label"><span class="label-text">Password</span></label>
                         <input type="password" id="password" class="input input-bordered w-full" onkeypress="if(event.key === 'Enter') connect()" />
                     </div>
+                    <div class="form-control w-full">
+                        <label class="label cursor-pointer justify-start gap-3">
+                            <input type="checkbox" id="secure" class="checkbox checkbox-primary checkbox-sm" />
+                            <span class="label-text">Secure Login (SSL)</span>
+                        </label>
+                    </div>
                     <div class="card-actions justify-center mt-4">
                         <button class="btn btn-primary w-full" onclick="connect()">
                             <i data-lucide="link" class="w-4 h-4 mr-2"></i> Connect
@@ -81,7 +87,10 @@
                         </h2>
                         <div class="flex gap-2">
                             <button class="btn btn-outline btn-sm" onclick="loadBindings()">
-                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                <i data-lucide="refresh-cw" class="w-4 h-4 mr-1"></i> Refresh
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="syncAll()">
+                                <i data-lucide="search" class="w-4 h-4 mr-1"></i> Sync All
                             </button>
                             <button class="btn btn-primary btn-sm" onclick="openModal()">
                                 <i data-lucide="plus" class="w-4 h-4 mr-1"></i> Add Binding
@@ -180,6 +189,34 @@
         <form method="dialog" class="modal-backdrop">
             <button>close</button>
         </form>
+    </dialog>
+
+    <!-- Certificate Approval Modal -->
+    <dialog id="certModal" class="modal">
+        <div class="modal-box max-w-lg">
+            <h3 class="font-bold text-lg text-warning flex items-center gap-2">
+                <i data-lucide="shield-alert" class="w-6 h-6"></i> Untrusted Certificate
+            </h3>
+            <p class="py-4 text-sm">The router presented an untrusted or self-signed certificate. Please verify the fingerprint before proceeding.</p>
+            
+            <div class="bg-base-200 p-4 rounded-lg space-y-2 text-xs font-mono break-all">
+                <div><span class="font-bold text-base-content/70">Subject:</span> <span id="cert-subject" class="text-base-content"></span></div>
+                <div><span class="font-bold text-base-content/70">Issuer:</span> <span id="cert-issuer" class="text-base-content"></span></div>
+                <div><span class="font-bold text-base-content/70">Validity:</span> <span id="cert-validity" class="text-base-content"></span></div>
+                <div class="divider my-1"></div>
+                <div><span class="font-bold text-base-content/70">SHA256 Fingerprint:</span></div>
+                <div id="cert-fingerprint" class="text-primary font-bold mt-1 text-center py-2 bg-base-300 rounded border border-base-content/10"></div>
+            </div>
+
+            <div class="modal-action flex flex-col sm:flex-row gap-2">
+                <button class="btn btn-primary flex-1" onclick="trustAndConnect()">
+                    <i data-lucide="shield-check" class="w-4 h-4 mr-2"></i> Accept & Connect
+                </button>
+                <form method="dialog" class="flex-1">
+                    <button class="btn btn-ghost w-full">Cancel</button>
+                </form>
+            </div>
+        </div>
     </dialog>
 
     <!-- Status Toast -->
