@@ -1,0 +1,210 @@
+import { Button, StandardTableView, VerticalBox, HorizontalBox, LineEdit, CheckBox, ComboBox, Palette } from "std-widgets.slint";
+
+export component Dashboard inherits Rectangle {
+    width: 100%;
+    height: 100%;
+
+    in property <[[StandardListViewItem]]> bindings;
+    in property <[string]> server-list;
+    in property <int> current-page: 1;
+    in property <int> total-pages: 1;
+    in property <int> total-items: 0;
+    
+    in-out property <bool> show-add-dialog: false;
+    in-out property <bool> is-editing: false;
+    in-out property <string> edit-id: "";
+    in-out property <string> form-name: "";
+    in-out property <string> form-mac: "";
+    in-out property <string> form-server: "";
+    in-out property <string> form-policy: "";
+    in-out property <bool> form-enabled: true;
+    
+    in-out property <int> sort-column: 0;
+    in-out property <bool> sort-asc: true;
+    callback sort-table(int, bool);
+    
+    callback refresh();
+    callback sync-all();
+    callback sync-selected(int);
+    callback format-mac(string);
+    callback add-device(string, string, string, string, bool);
+    callback save-edit-device(string, string, string, string, string, bool);
+    callback request-edit-device(int);
+    callback remove-device(int);
+    callback next-page();
+    callback prev-page();
+    callback change-page-size(string);
+    
+    VerticalBox {
+        width: 100%;
+        height: 100%;
+        padding: 10px;
+        spacing: 10px;
+        HorizontalBox {
+            alignment: start;
+            spacing: 10px;
+            Button { text: "Refresh"; clicked => { root.refresh(); } }
+            Button { text: "Sync All"; clicked => { root.sync-all(); } }
+            Button { 
+                text: "Sync Selected"; 
+                enabled: table.current-row >= 0;
+                clicked => { 
+                    if (table.current-row >= 0) {
+                        root.sync-selected(table.current-row);
+                    }
+                } 
+            }
+            Button { 
+                text: "Add Device"; 
+                clicked => { 
+                    root.is-editing = false;
+                    root.form-name = "";
+                    root.form-mac = "";
+                    root.form-enabled = true;
+                    root.show-add-dialog = true; 
+                } 
+            }
+            Button { 
+                text: "Edit Selected"; 
+                enabled: table.current-row >= 0;
+                clicked => { 
+                    if (table.current-row >= 0) {
+                        root.request-edit-device(table.current-row);
+                    }
+                } 
+            }
+            Button { 
+                text: "Remove Selected"; 
+                enabled: table.current-row >= 0;
+                clicked => { 
+                    if (table.current-row >= 0) {
+                        root.remove-device(table.current-row);
+                    }
+                } 
+            }
+        }
+        
+        table := StandardTableView {
+            horizontal-stretch: 1;
+            vertical-stretch: 1;
+            columns: [
+                { title: "Device Name", horizontal-stretch: 3, min-width: 200px, sort-order: root.sort-column == 0 ? (root.sort-asc ? SortOrder.ascending : SortOrder.descending) : SortOrder.unsorted },
+                { title: "MAC Address", horizontal-stretch: 1, min-width: 120px, sort-order: root.sort-column == 1 ? (root.sort-asc ? SortOrder.ascending : SortOrder.descending) : SortOrder.unsorted },
+                { title: "IP Address", horizontal-stretch: 1, min-width: 120px, sort-order: root.sort-column == 2 ? (root.sort-asc ? SortOrder.ascending : SortOrder.descending) : SortOrder.unsorted },
+                { title: "Server", horizontal-stretch: 1, min-width: 80px, sort-order: root.sort-column == 3 ? (root.sort-asc ? SortOrder.ascending : SortOrder.descending) : SortOrder.unsorted },
+                { title: "Policy", horizontal-stretch: 1, min-width: 80px, sort-order: root.sort-column == 4 ? (root.sort-asc ? SortOrder.ascending : SortOrder.descending) : SortOrder.unsorted },
+            ];
+            rows: root.bindings;
+            sort-ascending(index) => {
+                if (root.sort-column == index) {
+                    root.sort-asc = !root.sort-asc;
+                } else {
+                    root.sort-column = index;
+                    root.sort-asc = true;
+                }
+                root.sort-table(root.sort-column, root.sort-asc);
+            }
+        }
+        
+        HorizontalBox {
+            alignment: space-between;
+            HorizontalBox {
+                alignment: start;
+                spacing: 10px;
+                Text { text: "Items per page:"; vertical-alignment: center; }
+                ComboBox {
+                    model: ["25", "50", "100"];
+                    current-value: "25";
+                    selected(val) => { root.change-page-size(val); }
+                }
+            }
+            HorizontalBox {
+                alignment: end;
+                spacing: 15px;
+                Button { 
+                    text: "< Prev"; 
+                    enabled: root.current-page > 1;
+                    clicked => { root.prev-page(); }
+                }
+                Text { 
+                    text: "Page " + root.current-page + " of " + root.total-pages + " (" + root.total-items + " items)";
+                    vertical-alignment: center;
+                }
+                Button { 
+                    text: "Next >"; 
+                    enabled: root.current-page < root.total-pages;
+                    clicked => { root.next-page(); }
+                }
+            }
+        }
+    }
+    
+    if show-add-dialog: Rectangle {
+        background: #000000aa;
+        width: 100%;
+        height: 100%;
+        
+        Rectangle {
+            background: Palette.background;
+            border-radius: 8px;
+            width: 400px;
+            height: 380px;
+
+            VerticalBox {
+                padding: 20px;
+                spacing: 15px;
+                
+                Text { text: root.is-editing ? "Edit Device" : "Add New Device"; font-size: 16px; horizontal-alignment: center; }
+                
+                name-input := LineEdit { placeholder-text: "Device Name"; text <=> root.form-name; }
+                mac-input := LineEdit { 
+                    placeholder-text: "MAC Address"; 
+                    text <=> root.form-mac;
+                    edited(txt) => { root.format-mac(txt); }
+                }
+                
+                HorizontalBox {
+                    Text { text: "Server:"; vertical-alignment: center; }
+                    server-input := ComboBox { 
+                        model: root.server-list;
+                        current-value <=> root.form-server;
+                    }
+                }
+                
+                HorizontalBox {
+                    Text { text: "Policy:"; vertical-alignment: center; }
+                    policy-input := ComboBox {
+                        model: ["regular", "bypassed", "blocked"];
+                        current-value <=> root.form-policy;
+                    }
+                }
+                
+                enabled-input := CheckBox {
+                    text: "Enabled";
+                    checked <=> root.form-enabled;
+                }
+                
+                HorizontalBox {
+                    alignment: end;
+                    spacing: 10px;
+                    Button {
+                        text: "Cancel";
+                        clicked => { root.show-add-dialog = false; }
+                    }
+                    Button {
+                        text: "Save";
+                        enabled: name-input.text != "" && mac-input.text != "" && server-input.current-value != "" && policy-input.current-value != "";
+                        clicked => {
+                            if (root.is-editing) {
+                                root.save-edit-device(root.edit-id, mac-input.text, server-input.current-value, policy-input.current-value, name-input.text, enabled-input.checked);
+                            } else {
+                                root.add-device(mac-input.text, server-input.current-value, policy-input.current-value, name-input.text, enabled-input.checked);
+                            }
+                            root.show-add-dialog = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,222 @@
+import { Login } from "login.slint";
+import { Dashboard } from "dashboard.slint";
+import { Button, VerticalBox, Palette } from "std-widgets.slint";
+
+
+export component AppWindow inherits Window {
+    in property <bool> is-logged-in: false;
+    in property <[[StandardListViewItem]]> bindings;
+    in property <[string]> server-list;
+    in property <bool> show-cert-prompt: false;
+    in property <string> untrusted-cert-fingerprint: "";
+    
+    in property <bool> is-loading: false;
+    in property <string> loading-text: "Please wait...";
+    in property <bool> show-error: false;
+    in property <string> error-message: "";
+    
+    callback close-error();
+    
+    in property <int> current-page: 1;
+    in property <int> total-pages: 1;
+    in property <int> total-items: 0;
+    in-out property <int> sort-column: 0;
+    in-out property <bool> sort-asc: true;
+    
+    in-out property <bool> show-add-dialog: false;
+    in-out property <bool> is-editing: false;
+    in-out property <string> edit-id: "";
+    in-out property <string> form-name: "";
+    in-out property <string> form-mac: "";
+    in-out property <string> form-server: "";
+    in-out property <string> form-policy: "";
+    in-out property <bool> form-enabled: true;
+    
+    in property <string> init-ip: "";
+    in property <string> init-user: "";
+    in property <string> init-pass: "";
+    in property <bool> init-secure: true;
+    in property <bool> init-save: false;
+    
+    callback login(string, string, string, bool, bool); // ip, user, pass, secure, save_credentials
+    callback refresh();
+    callback sync-all();
+    callback sync-selected(int);
+    callback format-mac(string);
+    callback add-device(string, string, string, string, bool);
+    callback save-edit-device(string, string, string, string, string, bool);
+    callback request-edit-device(int);
+    callback remove-device(int);
+    callback accept-certificate(string);
+    callback reject-certificate();
+    
+    callback next-page();
+    callback prev-page();
+    callback change-page-size(string);
+    callback sort-table(int, bool);
+    
+    title: "Bandeng";
+    width: 800px;
+    height: 600px;
+    
+    if !is-logged-in: Login {
+        init-ip: root.init-ip;
+        init-user: root.init-user;
+        init-pass: root.init-pass;
+        init-secure: root.init-secure;
+        init-save: root.init-save;
+        login(ip, user, pass, secure, save) => {
+            root.login(ip, user, pass, secure, save);
+        }
+    }
+    
+    if is-logged-in: Dashboard {
+        bindings: root.bindings;
+        server-list: root.server-list;
+        current-page: root.current-page;
+        total-pages: root.total-pages;
+        total-items: root.total-items;
+        sort-column: root.sort-column;
+        sort-asc: root.sort-asc;
+        
+        show-add-dialog <=> root.show-add-dialog;
+        is-editing <=> root.is-editing;
+        edit-id <=> root.edit-id;
+        form-name <=> root.form-name;
+        form-mac <=> root.form-mac;
+        form-server <=> root.form-server;
+        form-policy <=> root.form-policy;
+        form-enabled <=> root.form-enabled;
+        
+        refresh => { root.refresh(); }
+        sync-all => { root.sync-all(); }
+        sync-selected(idx) => { root.sync-selected(idx); }
+        format-mac(txt) => { root.format-mac(txt); }
+        add-device(mac, server, policy, comment, enabled) => {
+            root.add-device(mac, server, policy, comment, enabled);
+        }
+        save-edit-device(id, mac, server, policy, comment, enabled) => {
+            root.save-edit-device(id, mac, server, policy, comment, enabled);
+        }
+        request-edit-device(idx) => { root.request-edit-device(idx); }
+        remove-device(idx) => { root.remove-device(idx); }
+        next-page => { root.next-page(); }
+        prev-page => { root.prev-page(); }
+        change-page-size(size) => { root.change-page-size(size); }
+        sort-table(sc, sa) => {
+            root.sort-column = sc;
+            root.sort-asc = sa;
+            root.sort-table(sc, sa);
+        }
+    }
+    
+    if show-cert-prompt: Rectangle {
+        background: #000000aa;
+        width: 100%;
+        height: 100%;
+        
+        Rectangle {
+            background: Palette.background;
+            border-radius: 8px;
+            width: 500px;
+            height: 250px;
+            
+            VerticalBox {
+                alignment: center;
+                Text {
+                    text: "Untrusted Certificate Detected";
+                    font-size: 18px;
+                    color: red;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "The router presented an unknown self-signed certificate:";
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: "Fingerprint (SHA-256): " + root.untrusted-cert-fingerprint;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                Text {
+                    text: "Do you want to trust this certificate for future connections?";
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 10px;
+                    padding-top: 15px;
+                    Button {
+                        text: "Reject";
+                        clicked => { root.reject-certificate(); }
+                    }
+                    Button {
+                        text: "Accept";
+                        clicked => { root.accept-certificate(root.untrusted-cert-fingerprint); }
+                    }
+                }
+            }
+        }
+    }
+    
+    if show-error: Rectangle {
+        background: #000000aa;
+        width: 100%;
+        height: 100%;
+        
+        Rectangle {
+            background: Palette.background;
+            border-radius: 8px;
+            width: 400px;
+            height: 200px;
+            
+            VerticalBox {
+                alignment: center;
+                spacing: 15px;
+                Text {
+                    text: "Error";
+                    font-size: 18px;
+                    color: red;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: root.error-message;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    Button {
+                        text: "Close";
+                        clicked => { root.close-error(); }
+                    }
+                }
+            }
+        }
+    }
+    
+    if is-loading: Rectangle {
+        background: #000000aa;
+        width: 100%;
+        height: 100%;
+        
+        Rectangle {
+            background: Palette.background;
+            border-radius: 8px;
+            width: 250px;
+            height: 100px;
+            
+            VerticalBox {
+                alignment: center;
+                Text {
+                    text: root.loading-text;
+                    font-size: 16px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+}

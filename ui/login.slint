@@ -1,0 +1,49 @@
+import { Button, LineEdit, CheckBox, VerticalBox } from "std-widgets.slint";
+
+export component Login {
+    in property <string> init-ip: "";
+    in property <string> init-user: "";
+    in property <string> init-pass: "";
+    in property <bool> init-secure: true;
+    in property <bool> init-save: false;
+
+    callback login(string, string, string, bool, bool);
+    
+    VerticalBox {
+        alignment: center;
+        width: 300px;
+        spacing: 10px;
+        Text {
+            text: "Bandeng - MikroTik Hotspot";
+            font-size: 16px;
+            horizontal-alignment: center;
+        }
+        ip-input := LineEdit {
+            placeholder-text: "Router IP (e.g. 192.168.88.1)";
+            text: root.init-ip;
+        }
+        user-input := LineEdit {
+            placeholder-text: "Username";
+            text: root.init-user;
+        }
+        pass-input := LineEdit {
+            placeholder-text: "Password";
+            input-type: password;
+            text: root.init-pass;
+        }
+        secure-check := CheckBox {
+            text: "Secure Login (SSL)";
+            checked: root.init-secure;
+        }
+        save-check := CheckBox {
+            text: "Save Credentials (Remember Me)";
+            checked: root.init-save;
+        }
+        Button {
+            text: "Login";
+            clicked => {
+                root.login(ip-input.text, user-input.text, pass-input.text, secure-check.checked, save-check.checked);
+            }
+        }
+    }
+}

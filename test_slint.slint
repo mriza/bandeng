@@ -1,0 +1,8 @@
+import { StandardTableView } from "std-widgets.slint";
+export component Test {
+    t := StandardTableView {
+        columns: [{ title: "A" }];
+        rows: [ { A: "1" } ];
+    }
+    out property <int> idx: t.current-row;
+}

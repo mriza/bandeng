@@ -1,30 +1,4 @@
-# Wails Binaries & Auto-generated
-build/
-frontend/wailsjs/
-frontend/package.json.md5
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/style.css
-frontend/tailwindcss-linux-x64
-frontend/.DS_Store
-
-# Go
-vendor/
-*.test
-*.out
-crash.log
-
-# IDEs
-.vscode/
-.idea/
-
-# OS junk
+/target/
+**/*.rs.bk
+*.swp
 .DS_Store
-Thumbs.db

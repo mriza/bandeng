@@ -11,8 +11,8 @@ Aplikasi desktop modern untuk mengelola IP binding pada MikroTik Hotspot dengan 
     - **Bulk Sync (Sync All)**: Memperbarui semua binding sekaligus dalam satu klik.
 - **Manajemen IP Binding**: Lihat, tambah, dan hapus binding dengan mudah.
 - **Dashboard Responsif**: Dilengkapi pagination dan status visual (`Bypassed`, `Blocked`, `Regular`).
-- **Offline Ready**: Semua aset (CSS & Ikon) berjalan luring tanpa butuh internet.
-- **Multi-Platform**: Tersedia untuk Windows dan Linux.
+- **Offline Ready**: Antarmuka ringan (dibangun secara native dengan Slint) tanpa overhead browser engine (WebView).
+- **Multi-Platform**: Tersedia untuk Windows, macOS, dan Linux.
 
 ## ⚙️ Persyaratan & Konfigurasi
 
@@ -31,7 +31,7 @@ Jalankan perintah berikut di terminal MikroTik:
 ```
 
 ### 3. Keamanan User (Direkomendasikan)
-Buat group dengan izin terbatas:
+Agar aplikasi Bandeng dapat beroperasi dengan aman **khusus untuk mengatur IP Binding pada Hotspot**, disarankan untuk membuat grup dan user Mikrotik dengan izin terbatas:
 ```bash
 /user group add name=bandeng-group policy=read,write,api,!local,!telnet,!ssh,!ftp,!reboot,!policy,!test,!winbox,!password,!web,!sniff,!sensitive,!romon,!rest-api
 /user add name=bandeng-user group=bandeng-group password=PASSWORD_ANDA
@@ -52,24 +52,23 @@ Buat group dengan izin terbatas:
     - Klik tombol **🔍 Sync All** untuk otomatis mengisi alamat IP yang kosong dari tabel ARP.
     - Klik ikon **🔍 (Search Check)** pada baris tabel untuk sinkronisasi satu per satu.
 
-## 📝 Changelog (v1.1.0)
+## 📝 Changelog (v2.0.0)
 
-- **[NEW]** Dukungan protokol API-SSL (TLS).
-- **[NEW]** Alur persetujuan Sertifikat SSL (TOFU) dengan tampilan SHA256 Fingerprint.
-- **[NEW]** Fitur "Sync All MAC & IP" untuk sinkronisasi massal.
-- **[IMPROVED]** Pagination tetap pada halaman yang sama setelah melakukan update data.
-- **[IMPROVED]** Penambahan teks label pada tombol-tombol navigasi.
-- **[FIXED]** Field Alamat IP sekarang muncul dengan benar (sebelumnya `ip-address` sekarang menggunakan `address`).
-- **[FIXED]** Penyesuaian ikon untuk membedakan fungsi Refresh dan Sync.
+- **[REWRITE]** Aplikasi sepenuhnya ditulis ulang menggunakan **Slint UI** (menggantikan Wails/Webview) untuk performa _native_, penggunaan RAM yang jauh lebih kecil, dan kecepatan maksimal.
+- **[NEW]** Dukungan protokol API-SSL (TLS) dengan alur persetujuan Sertifikat SSL (TOFU).
+- **[NEW]** Fitur "Sync All" untuk memindai ARP dan memperbarui semua IP kosong.
+- **[NEW]** Fitur "Sync Selected" untuk menyinkronkan satu perangkat spesifik.
+- **[NEW]** Penambahan Manajemen Perangkat (Tambah, Edit, Hapus IP Binding) yang dilengkapi Auto-Format MAC Address.
+- **[IMPROVED]** Paginasi dan Sorting pada tabel, perbaikan batasan baris data RouterOS.
 
 ## 📥 Instalasi & Build
 
-Unduh file binary terbaru di halaman **Releases**:
-- **Windows**: `Bandeng-v1.1.0-amd64.exe`
-- **Linux**: `Bandeng-v1.1.0-linux-amd64`
+Unduh file binary terbaru di halaman **Releases** untuk OS Anda (Windows, Mac, Linux).
 
 ### Build dari Source
+Aplikasi ini sekarang adalah aplikasi Rust native murni. Anda hanya memerlukan `cargo`:
 ```bash
-# Pastikan Wails v2 sudah terinstall
-wails build -platform windows/amd64,linux/amd64
+# Pastikan Rust toolchain sudah terinstall
+cargo build --release
 ```
+File *binary* yang dihasilkan dapat ditemukan pada folder `target/release/bandeng-rs`.
