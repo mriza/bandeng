@@ -50,7 +50,7 @@ jobs:
 
     - name: Rename Artifact (Windows)
       if: runner.os == 'Windows'
-      run: Rename-Item -Path "target\${{ matrix.target }}\release\${{ matrix.binary_name }}" -NewName "${{ matrix.artifact_name }}"
+      run: Move-Item -Path "target\${{ matrix.target }}\release\${{ matrix.binary_name }}" -Destination "${{ matrix.artifact_name }}"
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
